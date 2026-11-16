@@ -1,0 +1,48 @@
+R36S V12 - ECRAN - ARCHR (noyau 6.12)
+=====================================
+
+CE QUI A ETE FAIT
+-----------------
+1. La partition de boot (celle-ci, I:) etait detruite : le secteur 0
+   et une dizaine de secteurs de la FAT avaient ete ecrases par des
+   blocs "USBC" du lecteur de carte. Elle a ete reconstruite a
+   l'identique (FAT32, label ARCHR) et tous les fichiers ont ete
+   restaures puis verifies par MD5 (KERNEL identique a KERNEL.md5).
+
+2. L'ecran : ARCHR ne connait pas la dalle de ta console.
+   - rk3326-gameconsole-r36s.dtb (fourni par ARCHR) utilise la dalle
+     "gameconsole,r36s-panel" : mauvais timings -> ecran noir avec
+     retroeclairage, mais son OK.
+   - rk3326-gameconsole-r36s-panel3.dtb est le meme DTB ARCHR avec la
+     description de TA dalle injectee (celle de l'ancien OS AURKNIX :
+     944x512, 29 MHz, porches 150/4/150, init 773 octets, 60 Hz,
+     flags 0x0A03 = la valeur exacte de l'ancien OS).
+     compatible = "archr,generic-dsi" + panel_description.
+   - L'overlay u-boot /overlays/mipi-panel.dtbo n'est PLUS utilise
+     (ligne FDTOVERLAYS commentee dans extlinux.conf).
+
+3. extlinux.conf pointe maintenant sur ce DTB :
+   FDT /dtbs/rk3326-gameconsole-r36s-panel3.dtb
+
+POUR REVENIR EN ARRIERE
+-----------------------
+Editer extlinux/extlinux.conf et commenter la ligne FDT (ajouter #
+devant) : u-boot reprendra alors le DTB choisi automatiquement par la
+valeur ADC, donc le DTB d'origine ARCHR. Le fichier
+extlinux/extlinux.conf.r33s montre la syntaxe d'origine.
+
+FICHIERS
+--------
+dtbs/rk3326-gameconsole-r36s-panel3.dtb   DTB fusionne (ACTIF)
+dtbs/rk3326-r36s-panel3-porches.dtb       ancien DTB 4.4 (inutilisable
+                                          par le noyau 6.12, garde en
+                                          sauvegarde)
+dtbs/rk3326-r36s-panel3-flags.dtb         idem + flags 0x0E03
+dtbs/rk3326-r36s-panel3-adjust.dtb        idem, init 938 octets
+
+ATTENTION CARTE SD
+------------------
+Le lecteur/carte a deja produit des erreurs graves (volume vu a 0 Go,
+blocs "USBC" ecrits au hasard dans la partition de boot). Sauvegarde
+J:\ (ARCHR_ROMS) et evite de retirer la carte sans "retirer le
+peripherique en toute securite".

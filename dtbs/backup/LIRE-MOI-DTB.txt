@@ -1,0 +1,93 @@
+====================================================================
+ R36S  V12  2023-08-18  -  remise en etat de l ecran
+====================================================================
+
+SITUATION
+---------
+La console demarrait, le son etait normal, mais l ecran affichait
+d epaisses bandes verticales blanches et magenta/rouges.
+
+CAUSE TROUVEE
+-------------
+La carte etait configuree pour la MAUVAISE dalle. La reference exacte
+fournie par le proprietaire est l OS AURKNIX-RK3326.aarch64-20260809,
+qui utilisait le DTB :
+
+    rk3326-gameconsole-r36s-panel3.dtb
+
+Ce fichier n est pas dans le catalogue constructeur ArkOS (qui ne
+nomme pas les dalles de la meme facon), et surtout il decrit une
+combinaison de reglages absente de tous les DTB ArkOS :
+
+                     DTB usine ArkOS Panel 4     DTB AURKNIX Panel 3
+    horloge                    29 MHz                   29 MHz
+    h front / sync / back    46 / 2 / 44            150 / 4 / 150
+    v front / sync / back    16 / 2 / 14             16 / 2 / 14
+    sequence d init          773 octets        IDENTIQUE
+    delais                 20/150/20/120        IDENTIQUES
+    dsi,flags                  0x0A03                 0x0E03
+
+Au total : 944 x 512 pixels = 60,00 Hz exactement.
+
+Autrement dit : c est bien la famille "Panel 4" (meme initialisation,
+memes delais, meme horloge), mais avec des porches horizontaux de
+150/4/150 au lieu de 46/2/44. Aucun DTB du catalogue ne contenait
+cette combinaison, d ou des bandes identiques a chaque essai.
+
+CORRECTION APPORTEE
+-------------------
+Un DTB a ete reconstruit dans le format du noyau actuel (4.4.189),
+en reprenant le DTB d usine Panel 4 et en corrigeant les timings :
+
+    rk3326-r36s-panel3-porches.dtb    porches 150/4/150       <== ACTIF
+    rk3326-r36s-panel3-flags.dtb      idem + flags 0x0E03
+    uboot-panel3.dtb                  meme correction pour u-boot
+
+L ecran est en effet configure DEUX fois :
+  - par u-boot   -> rg351mp-uboot.dtb (phase logo, 1re seconde)
+  - par le noyau -> fichier de boot.ini
+Les deux fichiers sont donc installes ensemble.
+
+LISTE DES ESSAIS  (CHOISIR-PANEL.bat)
+-------------------------------------
+   1) rk3326-r36s-panel3-porches   PANEL 3, 60 Hz        <== ACTIF
+   2) rk3326-r36s-panel3-flags     + dsi,flags 0xE03
+   3) rk3326-r36s-linux.dtb        USINE Panel 4  (bandes)
+   4) factory-panel0               USINE Panel 0  (ecran noir)
+   5) clone-v12-panel8a            CLONE V12 30 MHz
+   6) clone-v12-panel3a            CLONE V12 30 MHz
+   7) clone-v12-panela             CLONE V12 30 MHz
+   8) clone-v12-panel1             CLONE V12 30 MHz
+   9) arkos panel4-type2           init 763 o
+  10) arkos panel3                 init 938 o
+  11) arkos panel2                 init 933 o
+  12) arkos panel1                 init 299 o
+  13) arkos panel0                 init 370 o
+  14) arkos type1 + 60 Hz          config d origine
+
+Chaque essai installe le noyau ET l u-boot ensemble.
+
+SAUVEGARDES
+-----------
+  boot.ini.bak               boot.ini precedent
+  rg351mp-uboot.dtb.bak      u-boot Panel 4 d usine
+  uboot-panel4.dtb           u-boot Panel 4
+  uboot-panel3.dtb           u-boot corrige panel3
+  uboot-panel0.dtb           u-boot Panel 0
+  uboot-clone*.dtb           u-boot des clones V12
+  dtb\                       catalogue constructeur complet
+
+ATTENTION : "SELECT MODEL.bat" SUPPRIME tous les .dtb de la racine.
+Ne le lance pas pendant les essais.
+
+A PROPOS DE LA CARTE SD
+-----------------------
+Une fausse alerte : la carte a paru morte (lecteur vu, mais 0 Go et
+"No Media"). En realite elle etait simplement mal enfoncee. Apres
+reinsertion correcte, elle est vue normalement : 116 Go, partition
+BOOT en FAT32, EASYROMS en exFAT. Aucun formatage n a ete fait.
+
+Il y a eu auparavant de vraies erreurs 1392 sur la FAT, reparees par
+chkdsk /f /x, puis tous les fichiers ont ete verifies par MD5.
+
+====================================================================
